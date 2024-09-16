@@ -7,6 +7,7 @@ from prettytable import PrettyTable
 from pytorch_fid import fid_score as PytorchFID
 from PIL import Image
 from torch.utils.data import Dataset
+from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image import StructuralSimilarityIndexMeasure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from torchvision import transforms
@@ -101,6 +102,17 @@ def copy_resize_gt(gt_folder, height):
 
 
 @torch.no_grad()
+def psnr(dataloader):
+    psnr_score = 0
+    psnr = PeakSignalNoiseRatio(data_range=1.0).to("cuda")
+    for gt, pred in tqdm(dataloader, desc="Calculating PSNR"):
+        batch_size = gt.size(0)
+        gt, pred = gt.to("cuda"), pred.to("cuda")
+        psnr_score += psnr(pred, gt) * batch_size
+    return psnr_score / len(dataloader.dataset)
+
+
+@torch.no_grad()
 def ssim(dataloader):
     ssim_score = 0
     ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to("cuda")
@@ -153,10 +165,12 @@ def eval(args):
     clean_kid_ = CleanFID.compute_kid(args.gt_folder, args.pred_folder) * 1000
     row = ["{:.4f}".format(clean_fid_), "{:.4f}".format(clean_kid_)]
     if args.paired:
-        header += ["SSIM", "LPIPS"]
+        header += ["PSNR", "SSIM", "LPIPS"]
+        psnr_ = psnr(dataloader).item()
         ssim_ = ssim(dataloader).item()
         lpips_ = lpips(dataloader).item()
-        row += ["{:.4f}".format(ssim_), "{:.4f}".format(lpips_)]
+        row += ["{:.4f}".format(psnr_), "{:.4f}".format(ssim_),
+                "{:.4f}".format(lpips_)]
     pytorch_fid_ = PytorchFID.calculate_fid_given_paths(
         [args.gt_folder, args.pred_folder], batch_size=args.batch_size, device="cuda", dims=2048, num_workers=args.num_workers)
     header += ["PyTorch-FID"]
