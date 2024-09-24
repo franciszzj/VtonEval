@@ -23,6 +23,10 @@ class EvalDataset(Dataset):
         self.to_tensor = transforms.ToTensor()
 
     def extract_id_from_filename(self, filename):
+        if "inshop" in filename:
+            filename = filename.split(".")[0]
+            return filename
+
         # find first number in filename
         start_i = None
         for i, c in enumerate(filename):
@@ -86,7 +90,7 @@ def scan_files_in_dir(directory, postfix: Set[str] = None, progress_bar: tqdm = 
     return file_list
 
 
-def copy_resize_gt(gt_folder, height):
+def copy_resize_gt(gt_folder, height, width):
     new_folder = f"{gt_folder}_{height}"
     if not os.path.exists(new_folder):
         os.makedirs(new_folder, exist_ok=True)
@@ -94,9 +98,7 @@ def copy_resize_gt(gt_folder, height):
         if os.path.exists(os.path.join(new_folder, file)):
             continue
         img = Image.open(os.path.join(gt_folder, file))
-        w, h = img.size
-        new_w = int(w * height / h)
-        img = img.resize((new_w, height), Image.LANCZOS)
+        img = img.resize((width, height), Image.LANCZOS)
         img.save(os.path.join(new_folder, file))
     return new_folder
 
@@ -146,9 +148,10 @@ def eval(args):
     img = Image.open(os.path.join(args.pred_folder, pred_sample))
     gt_img = Image.open(os.path.join(args.gt_folder, gt_sample))
     if img.height != gt_img.height:
-        title = "--"*30 + "Resizing GT Images to height {img.height}" + "--"*30
+        title = "--"*30 + \
+            f"Resizing GT Images to height {img.height}" + "--"*30
         print(title)
-        args.gt_folder = copy_resize_gt(args.gt_folder, img.height)
+        args.gt_folder = copy_resize_gt(args.gt_folder, img.height, img.width)
         print("-"*len(title))
 
     # Form dataset
