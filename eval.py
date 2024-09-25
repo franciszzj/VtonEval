@@ -163,21 +163,28 @@ def eval(args):
     # Calculate Metrics
     header = []
     row = []
-    header = ["Clean-FID", "Clean-KID"]
+    header += ["PyTorch-FID"]
+    pytorch_fid_ = PytorchFID.calculate_fid_given_paths(
+        [args.gt_folder, args.pred_folder], batch_size=args.batch_size, device="cuda", dims=2048, num_workers=args.num_workers)
+    row += ["{:.4f}".format(pytorch_fid_)]
+    print("PyTorch-FID: {:.4f}".format(pytorch_fid_))
+    header += ["Clean-FID", "Clean-KID"]
     clean_fid_ = CleanFID.compute_fid(args.gt_folder, args.pred_folder)
+    print("Clean-FID: {:.4f}".format(clean_fid_))
+    row += ["{:.4f}".format(clean_fid_)]
     clean_kid_ = CleanFID.compute_kid(args.gt_folder, args.pred_folder) * 1000
-    row = ["{:.4f}".format(clean_fid_), "{:.4f}".format(clean_kid_)]
+    print("Clean-KID: {:.4f}".format(clean_kid_))
+    row += ["{:.4f}".format(clean_kid_)]
     if args.paired:
         header += ["PSNR", "SSIM", "LPIPS"]
         psnr_ = psnr(dataloader).item()
+        print("PSNR: {:.4f}".format(psnr_))
         ssim_ = ssim(dataloader).item()
+        print("SSIM: {:.4f}".format(ssim_))
         lpips_ = lpips(dataloader).item()
+        print("LPIPS: {:.4f}".format(lpips_))
         row += ["{:.4f}".format(psnr_), "{:.4f}".format(ssim_),
                 "{:.4f}".format(lpips_)]
-    pytorch_fid_ = PytorchFID.calculate_fid_given_paths(
-        [args.gt_folder, args.pred_folder], batch_size=args.batch_size, device="cuda", dims=2048, num_workers=args.num_workers)
-    header += ["PyTorch-FID"]
-    row += ["{:.4f}".format(pytorch_fid_)]
 
     # Print Results
     print("GT Folder  : ", args.gt_folder)
